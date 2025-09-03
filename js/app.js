@@ -7,34 +7,6 @@ const firebaseConfig = {
     messagingSenderId: "SEU_SENDER_ID",
     appId: "SEU_APP_ID"
 };
-// Função para inicializar modais
-function initializeModals() {
-    // Fechar modais quando clicar no X
-    document.querySelectorAll('.close').forEach(closeBtn => {
-        closeBtn.addEventListener('click', function() {
-            const modalId = this.getAttribute('data-modal');
-            document.getElementById(modalId).classList.add('hidden');
-        });
-    });
-    
-    // Fechar modais quando clicar fora deles
-    window.addEventListener('click', function(event) {
-        if (event.target.classList.contains('modal')) {
-            event.target.classList.add('hidden');
-        }
-    });
-    
-    // Garantir que todos os modais começam ocultos
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.classList.add('hidden');
-    });
-}
-
-// Chamar a inicialização no carregamento da página
-document.addEventListener('DOMContentLoaded', function() {
-    initializeModals();
-    showLogin();
-});
 
 // Inicializar o Firebase
 firebase.initializeApp(firebaseConfig);
@@ -140,7 +112,7 @@ function addProduct() {
     }
     
     const product = {
-        id: Date.now(), // ID único para o produto
+        id: Date.now(),
         name: name,
         quantity: quantity,
         price: price
@@ -218,69 +190,14 @@ function deleteProduct(index) {
     }
 }
 
-// Solicitar permissão para notificações
-function requestNotificationPermission() {
-    console.log('Solicitando permissão...');
-    Notification.requestPermission().then((permission) => {
-        if (permission === 'granted') {
-            console.log('Permissão de notificação concedida.');
-            // Obter o token de registro
-            messaging.getToken({vapidKey: "SUA_CHAVE_VAPID_AQUI"}).then((currentToken) => {
-                if (currentToken) {
-                    console.log('Token:', currentToken);
-                    // Salvar o token no Firestore
-                    saveTokenToFirestore(currentToken);
-                } else {
-                    console.log('Não foi possível obter o token de notificação.');
-                }
-            }).catch((err) => {
-                console.log('Ocorreu um erro ao recuperar o token:', err);
-            });
-        } else {
-            console.log('Permissão de notificação negada.');
-        }
-    });
+// Funções para controlar modais
+function openModal(modalId) {
+    document.getElementById(modalId).classList.remove('hidden');
 }
 
-// Salvar token no Firestore
-function saveTokenToFirestore(token) {
-    if (!appState.currentUser) return;
-    
-    const userRef = db.collection('users').doc(appState.currentUser.uid);
-    userRef.set({
-        messagingToken: token,
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true })
-    .then(() => {
-        console.log('Token salvo com sucesso!');
-    })
-    .catch((error) => {
-        console.error('Erro ao salvar token:', error);
-    });
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
 }
-
-// Escutar mensagens em primeiro plano
-messaging.onMessage((payload) => {
-    console.log('Mensagem recebida em primeiro plano:', payload);
-    
-    // Adicionar notificação ao estado local
-    const newNotification = {
-        title: payload.notification.title,
-        content: payload.notification.body,
-        time: new Date().toLocaleTimeString()
-    };
-    
-    appState.notifications.unshift(newNotification);
-    updateNotificationBadge();
-    
-    // Mostrar notificação
-    if (Notification.permission === 'granted') {
-        new Notification(payload.notification.title, {
-            body: payload.notification.body,
-            icon: 'https://example.com/icon.png' // URL do ícone
-        });
-    }
-});
 
 // Funções para gerenciar a interface do usuário
 function renderView(viewName) {
@@ -290,7 +207,6 @@ function renderView(viewName) {
     
     if (viewName === 'notifications') {
         document.getElementById('notifications-view').classList.remove('hidden');
-        renderNotifications();
     } else if (appState.userType === 'client') {
         document.getElementById('client-view').classList.remove('hidden');
     } else {
@@ -302,43 +218,6 @@ function renderView(viewName) {
         if (item.getAttribute('data-view') === viewName) {
             item.classList.add('active');
         }
-    });
-}
-
-function updateNotificationBadge() {
-    const badge = document.getElementById('notification-badge');
-    const count = appState.notifications.length;
-    if (count > 0) {
-        badge.textContent = count;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
-    }
-}
-
-function renderNotifications() {
-    const list = document.getElementById('notifications-list');
-    list.innerHTML = '';
-    
-    if (appState.notifications.length === 0) {
-        list.innerHTML = `
-            <div class="help-text">
-                <i class="far fa-bell"></i>
-                <p>Nenhuma notificação por enquanto.</p>
-            </div>
-        `;
-        return;
-    }
-    
-    appState.notifications.forEach(notif => {
-        const item = document.createElement('div');
-        item.classList.add('notification-item');
-        item.innerHTML = `
-            <div class="notification-title">${notif.title}</div>
-            <div class="notification-content">${notif.content}</div>
-            <div class="notification-time">${notif.time}</div>
-        `;
-        list.appendChild(item);
     });
 }
 
@@ -355,81 +234,29 @@ function showDashboard() {
     document.getElementById('main-nav').classList.remove('hidden');
 }
 
-// Função para registrar a venda no Firestore
-async function registerSale() {
-    const clientSelect = document.getElementById('client-select');
-    const clientName = clientSelect.value;
-    const notes = document.getElementById('sale-notes').value.trim();
+// Inicialização
+function initializeApp() {
+    // Garantir que todos os modais começam ocultos
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.classList.add('hidden');
+    });
     
-    if (!clientName) {
-        alert('Por favor, selecione um cliente.');
-        return;
-    }
-    
-    if (appState.currentSaleProducts.length === 0) {
-        alert('Por favor, adicione pelo menos um produto.');
-        return;
-    }
-    
-    try {
-        // Calcular o total
-        const total = appState.currentSaleProducts.reduce((sum, product) => sum + (product.price * product.quantity), 0);
-        
-        // Registrar a venda no Firestore
-        const docRef = await db.collection('sales').add({
-            clientName: clientName,
-            products: appState.currentSaleProducts,
-            totalAmount: total,
-            notes: notes,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-            userId: appState.currentUser ? appState.currentUser.uid : 'demo-user'
+    // Fechar modais quando clicar no X
+    document.querySelectorAll('.close').forEach(closeBtn => {
+        closeBtn.addEventListener('click', function() {
+            const modalId = this.getAttribute('data-modal');
+            closeModal(modalId);
         });
-        
-        console.log("Venda registrada com ID: ", docRef.id);
-        alert(`Venda para ${clientName} no valor de ${formatCurrency(total)} registrada com sucesso!`);
-        
-        // Limpar o formulário
-        appState.currentSaleProducts = [];
-        renderProductsList();
-        document.getElementById('sale-notes').value = '';
-        clientSelect.value = '';
-        
-    } catch (error) {
-        console.error("Erro ao registrar venda: ", error);
-        alert("Erro ao registrar venda. Tente novamente.");
-    }
-}
-
-// Simular notificações para demonstração
-function simulateNotification() {
-    const notifications = [
-        {
-            title: 'Pagamento Recebido',
-            content: 'João Santos realizou um pagamento de R$ 50,00'
-        },
-        {
-            title: 'Nova Compra',
-            content: 'Maria Silva realizou uma compra de R$ 35,50'
-        },
-        {
-            title: 'Fiado em Atraso',
-            content: 'Pedro Costa está com pagamento atrasado há 5 dias'
+    });
+    
+    // Fechar modais quando clicar fora deles
+    window.addEventListener('click', function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.classList.add('hidden');
         }
-    ];
+    });
     
-    const randomNotif = notifications[Math.floor(Math.random() * notifications.length)];
-    randomNotif.time = new Date().toLocaleTimeString();
-    
-    appState.notifications.unshift(randomNotif);
-    updateNotificationBadge();
-    
-    // Mostrar notificação real se permitido
-    if (Notification.permission === 'granted') {
-        new Notification(randomNotif.title, {
-            body: randomNotif.content,
-            icon: 'https://example.com/icon.png'
-        });
-    }
+    showLogin();
 }
 
 // Event Listeners
@@ -451,9 +278,6 @@ document.getElementById('login-btn').addEventListener('click', function() {
     document.getElementById('login-section').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
     document.getElementById('main-nav').classList.remove('hidden');
-    
-    // Solicitar permissão para notificações após o login
-    requestNotificationPermission();
     
     renderView('home');
     alert('Login realizado com sucesso! (Modo demonstração)');
@@ -496,42 +320,39 @@ document.getElementById('add-product-button').addEventListener('click', function
     addBtn.onclick = addProduct;
     
     // Mostrar o modal
-    document.getElementById('product-modal').classList.remove('hidden');
+    openModal('product-modal');
 });
 
 document.getElementById('add-product-btn').addEventListener('click', addProduct);
 
-// Fechar modais quando clicar no X
-document.querySelectorAll('.close').forEach(closeBtn => {
-    closeBtn.addEventListener('click', function() {
-        const modalId = this.getAttribute('data-modal');
-        document.getElementById(modalId).classList.add('hidden');
-    });
-});
-
-// Fechar modais quando clicar fora deles
-window.addEventListener('click', function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.classList.add('hidden');
-    }
-});
-
 // Registrar venda
-document.getElementById('register-sale-btn').addEventListener('click', registerSale);
-
-// Inicialização
-showLogin();
-
-// Verificar se o usuário já está logado (para demonstração)
-auth.onAuthStateChanged((user) => {
-    if (user) {
-        appState.currentUser = user;
-        showDashboard();
-        renderView('home');
-    } else {
-        showLogin();
+document.getElementById('register-sale-btn').addEventListener('click', function() {
+    const clientSelect = document.getElementById('client-select');
+    const clientName = clientSelect.value;
+    const notes = document.getElementById('sale-notes').value.trim();
+    
+    if (!clientName) {
+        alert('Por favor, selecione um cliente.');
+        return;
     }
+    
+    if (appState.currentSaleProducts.length === 0) {
+        alert('Por favor, adicione pelo menos um produto.');
+        return;
+    }
+    
+    // Calcular o total
+    const total = appState.currentSaleProducts.reduce((sum, product) => sum + (product.price * product.quantity), 0);
+    
+    // Simular registro da venda
+    alert(`Venda para ${clientName} registrada com sucesso!\nTotal: ${formatCurrency(total)}`);
+    
+    // Limpar o formulário
+    appState.currentSaleProducts = [];
+    renderProductsList();
+    document.getElementById('sale-notes').value = '';
+    clientSelect.value = '';
 });
 
-// Simular notificação a cada 30 segundos para demonstração
-setInterval(simulateNotification, 30000);
+// Inicializar a aplicação quando o DOM estiver carregado
+document.addEventListener('DOMContentLoaded', initializeApp);
