@@ -4,58 +4,213 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meu Fiado - Controle de Fiados</title>
+    <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        /* Seus estilos CSS aqui */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal:not(.hidden) {
-            display: flex;
-        }
-        
-        .modal.hidden {
-            display: none;
-        }
-        
-        .modal-content {
-            background-color: white;
-            padding: 20px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 400px;
-        }
-    </style>
 </head>
 <body>
     <header>
-        <!-- cabeçalho -->
+        <div class="logo">
+            <i class="fas fa-store"></i>
+            <h1>Meu Fiado</h1>
+        </div>
+        <p class="header-subtitle">Controle de fiados para clientes e comerciantes</p>
     </header>
     
     <div class="container">
-        <!-- conteúdo principal -->
+        <div class="user-type">
+            <button class="user-type-btn active" id="client-btn">
+                <i class="fas fa-user"></i>
+                Sou Cliente
+            </button>
+            <button class="user-type-btn" id="merchant-btn">
+                <i class="fas fa-store"></i>
+                Sou Comerciante
+            </button>
+        </div>
+        
+        <div class="card" id="login-section">
+            <h2>Entrar na minha conta</h2>
+            <input type="text" id="username" placeholder="CPF ou E-mail">
+            <input type="password" id="password" placeholder="Senha">
+            <button id="login-btn"><i class="fas fa-sign-in-alt"></i> Entrar</button>
+            <p style="text-align: center; margin-top: 16px;">
+                <a href="#" style="color: var(--primary);">Primeiro acesso? Cadastre-se aqui</a>
+            </p>
+        </div>
+        
+        <div id="dashboard" class="hidden">
+            <div id="client-view" class="view">
+                <div class="balance">
+                    <h3>Saldo devedor</h3>
+                    <h2 id="client-balance">R$ 145,90</h2>
+                    <div class="balance-status" id="balance-status">Pagamento em dia</div>
+                </div>
+                
+                <div class="tabs">
+                    <div class="tab active" data-tab="transactions">
+                        <i class="fas fa-receipt"></i> Extrato
+                    </div>
+                    <div class="tab" data-tab="request">
+                        <i class="fas fa-hand-holding-usd"></i> Solicitar
+                    </div>
+                </div>
+                
+                <div class="tab-content">
+                    <div id="transactions-tab">
+                        <div class="transactions" id="client-transactions">
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="transaction-title">Compra realizada</div>
+                                    <div class="transaction-date">20/05/2023 - 14:32</div>
+                                </div>
+                                <div class="transaction-value debit">- R$ 45,90</div>
+                            </div>
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="transaction-title">Pagamento realizado</div>
+                                    <div class="transaction-date">15/05/2023 - 09:15</div>
+                                </div>
+                                <div class="transaction-value credit">+ R$ 100,00</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="request-tab" class="hidden">
+                        <div class="card">
+                            <h2>Solicitar aumento de fiado</h2>
+                            <input type="number" placeholder="Valor solicitado (R$)">
+                            <textarea placeholder="Motivo da solicitação" rows="4"></textarea>
+                            <button class="secondary"><i class="fas fa-paper-plane"></i> Enviar solicitação</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="merchant-view" class="hidden view">
+                <div class="balance">
+                    <h3>Total de fiados em aberto</h3>
+                    <h2 id="merchant-balance">R$ 1.245,90</h2>
+                    <p>Valor total a receber</p>
+                </div>
+                
+                <div class="tabs">
+                    <div class="tab active" data-tab="customers">
+                        <i class="fas fa-users"></i> Clientes
+                    </div>
+                    <div class="tab" data-tab="new-transaction">
+                        <i class="fas fa-cash-register"></i> Nova Venda
+                    </div>
+                </div>
+                
+                <div class="tab-content">
+                    <div id="customers-tab">
+                        <div class="search-bar">
+                            <input type="text" placeholder="Buscar cliente...">
+                            <button><i class="fas fa-search"></i></button>
+                        </div>
+                        <div class="transactions" id="merchant-customers">
+                            <div class="customer-item">
+                                <div class="customer-info">
+                                    <div class="customer-name">Maria Silva</div>
+                                    <div class="customer-balance">Fiado: R$ 120,50</div>
+                                </div>
+                                <div class="customer-status status-bad">Em atraso</div>
+                            </div>
+                            <div class="customer-item">
+                                <div class="customer-info">
+                                    <div class="customer-name">João Santos</div>
+                                    <div class="customer-balance">Fiado: R$ 45,90</div>
+                                </div>
+                                <div class="customer-status status-good">Em dia</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="new-transaction-tab" class="hidden">
+                        <div class="card">
+                            <h2>Registrar nova venda</h2>
+                            <select id="client-select">
+                                <option value="" disabled selected>Selecione o cliente</option>
+                                <option value="Maria Silva">Maria Silva</option>
+                                <option value="João Santos">João Santos</option>
+                                <option value="Ana Oliveira">Ana Oliveira</option>
+                                <option value="Pedro Costa">Pedro Costa</option>
+                            </select>
+                            
+                            <div class="products-section">
+                                <h3>Produtos da Compra</h3>
+                                <div id="products-list" class="products-list">
+                                    <div class="help-text">
+                                        <i class="fas fa-shopping-cart"></i>
+                                        <p>Nenhum produto adicionado ainda.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="products-actions">
+                                    <button id="add-product-button" class="secondary">
+                                        <i class="fas fa-plus"></i> Adicionar Produto
+                                    </button>
+                                </div>
+                                
+                                <div class="sale-summary">
+                                    <div class="summary-item">
+                                        <span>Total de Itens:</span>
+                                        <span id="total-items">0</span>
+                                    </div>
+                                    <div class="summary-item">
+                                        <span>Valor Total:</span>
+                                        <span id="total-value">R$ 0,00</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <textarea id="sale-notes" placeholder="Observações adicionais" rows="3"></textarea>
+                            <button id="register-sale-btn" class="secondary"><i class="fas fa-save"></i> Registrar Venda</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="notifications-view" class="hidden view">
+                <div class="card">
+                    <h2>Notificações</h2>
+                    <div id="notifications-list">
+                        <div class="help-text">
+                            <i class="far fa-bell"></i>
+                            <p>Nenhuma notificação por enquanto.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     
-    <nav>
-        <!-- navegação -->
+    <nav class="hidden" id="main-nav">
+        <div class="nav-item active" data-view="home">
+            <i class="fas fa-home"></i>
+            <span>Início</span>
+        </div>
+        <div class="nav-item" data-view="transactions">
+            <i class="fas fa-receipt"></i>
+            <span>Extrato</span>
+        </div>
+        <div class="nav-item" data-view="notifications">
+            <i class="fas fa-bell"></i>
+            <span>Notificações</span>
+            <div class="notification-badge hidden" id="notification-badge">0</div>
+        </div>
+        <div class="nav-item" data-view="profile">
+            <i class="fas fa-user"></i>
+            <span>Perfil</span>
+        </div>
     </nav>
-    
-    <!-- Modal para adicionar produtos (FORA do container) -->
+
+    <!-- Modal para adicionar produtos (FORA do container principal) -->
     <div id="product-modal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Adicionar Produto</h2>
-                <span class="close" onclick="closeModal('product-modal')">&times;</span>
+                <span class="close" data-modal="product-modal">&times;</span>
             </div>
             <div class="modal-body">
                 <input type="text" id="product-name" placeholder="Nome do produto">
@@ -66,32 +221,13 @@
         </div>
     </div>
 
-    <script>
-        // Funções para controlar modais
-        function openModal(modalId) {
-            document.getElementById(modalId).classList.remove('hidden');
-        }
-        
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.add('hidden');
-        }
-        
-        // Fechar modal ao clicar fora
-        window.addEventListener('click', function(event) {
-            if (event.target.classList.contains('modal')) {
-                event.target.classList.add('hidden');
-            }
-        });
-        
-        // Inicializar a página
-        document.addEventListener('DOMContentLoaded', function() {
-            // Garantir que todos os modais começam ocultos
-            document.querySelectorAll('.modal').forEach(modal => {
-                modal.classList.add('hidden');
-            });
-            
-            // Seu código de inicialização aqui
-        });
-    </script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+    
+    <!-- Nosso JavaScript -->
+    <script src="js/app.js"></script>
 </body>
 </html>
