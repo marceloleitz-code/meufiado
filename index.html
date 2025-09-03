@@ -6,9 +6,6 @@
     <title>MercadoFiado - Controle de Fiados</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <header>
@@ -33,18 +30,20 @@
         
         <div class="card" id="login-section">
             <h2>Entrar na minha conta</h2>
-            <input type="email" id="email" placeholder="Seu e-mail">
-            <input type="password" id="password" placeholder="Sua senha">
+            <input type="text" id="username" placeholder="CPF ou E-mail">
+            <input type="password" id="password" placeholder="Senha">
             <button id="login-btn"><i class="fas fa-sign-in-alt"></i> Entrar</button>
-            <button id="signup-btn" class="secondary"><i class="fas fa-user-plus"></i> Criar conta</button>
+            <p style="text-align: center; margin-top: 16px;">
+                <a href="#" style="color: var(--primary);">Primeiro acesso? Cadastre-se aqui</a>
+            </p>
         </div>
         
         <div id="dashboard" class="hidden">
             <div id="client-view" class="view">
                 <div class="balance">
                     <h3>Seu saldo de fiado</h3>
-                    <h2 id="client-balance">R$ 0,00</h2>
-                    <div class="balance-status" id="balance-status">Nenhuma transação</div>
+                    <h2 id="client-balance">R$ 145,90</h2>
+                    <div class="balance-status" id="balance-status">Pagamento em dia</div>
                 </div>
                 
                 <div class="tabs">
@@ -59,9 +58,19 @@
                 <div class="tab-content">
                     <div id="transactions-tab">
                         <div class="transactions" id="client-transactions">
-                            <div class="help-text">
-                                <i class="fas fa-receipt"></i>
-                                <p>Nenhuma transação encontrada.</p>
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="transaction-title">Compra no mercadinho</div>
+                                    <div class="transaction-date">20/05/2023 - 14:32</div>
+                                </div>
+                                <div class="transaction-value debit">- R$ 45,90</div>
+                            </div>
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="transaction-title">Pagamento realizado</div>
+                                    <div class="transaction-date">15/05/2023 - 09:15</div>
+                                </div>
+                                <div class="transaction-value credit">+ R$ 100,00</div>
                             </div>
                         </div>
                     </div>
@@ -69,22 +78,18 @@
                     <div id="request-tab" class="hidden">
                         <div class="card">
                             <h2>Solicitar aumento de fiado</h2>
-                            <input type="number" id="credit-request-value" placeholder="Valor solicitado (R$)">
-                            <textarea id="credit-request-reason" placeholder="Motivo da solicitação" rows="4"></textarea>
-                            <button id="request-credit-btn" class="secondary"><i class="fas fa-paper-plane"></i> Enviar solicitação</button>
+                            <input type="number" placeholder="Valor solicitado (R$)">
+                            <textarea placeholder="Motivo da solicitação" rows="4"></textarea>
+                            <button class="secondary"><i class="fas fa-paper-plane"></i> Enviar solicitação</button>
                         </div>
                     </div>
-                </div>
-                
-                <div class="action-buttons">
-                    <button id="add-payment-btn"><i class="fas fa-money-bill-wave"></i> Registrar pagamento</button>
                 </div>
             </div>
             
             <div id="merchant-view" class="hidden view">
                 <div class="balance">
                     <h3>Total de fiados em aberto</h3>
-                    <h2 id="merchant-balance">R$ 0,00</h2>
+                    <h2 id="merchant-balance">R$ 1.245,90</h2>
                     <p>Valor total a receber</p>
                 </div>
                 
@@ -100,13 +105,23 @@
                 <div class="tab-content">
                     <div id="customers-tab">
                         <div class="search-bar">
-                            <input type="text" id="customer-search" placeholder="Buscar cliente...">
-                            <button id="search-btn"><i class="fas fa-search"></i></button>
+                            <input type="text" placeholder="Buscar cliente...">
+                            <button><i class="fas fa-search"></i></button>
                         </div>
                         <div class="transactions" id="merchant-customers">
-                            <div class="help-text">
-                                <i class="fas fa-users"></i>
-                                <p>Nenhum cliente encontrado.</p>
+                            <div class="customer-item">
+                                <div class="customer-info">
+                                    <div class="customer-name">Maria Silva</div>
+                                    <div class="customer-balance">Fiado: R$ 120,50</div>
+                                </div>
+                                <div class="customer-status status-bad">Em atraso</div>
+                            </div>
+                            <div class="customer-item">
+                                <div class="customer-info">
+                                    <div class="customer-name">João Santos</div>
+                                    <div class="customer-balance">Fiado: R$ 45,90</div>
+                                </div>
+                                <div class="customer-status status-good">Em dia</div>
                             </div>
                         </div>
                     </div>
@@ -116,6 +131,10 @@
                             <h2>Registrar nova venda</h2>
                             <select id="client-select">
                                 <option value="" disabled selected>Selecione o cliente</option>
+                                <option value="Maria Silva">Maria Silva</option>
+                                <option value="João Santos">João Santos</option>
+                                <option value="Ana Oliveira">Ana Oliveira</option>
+                                <option value="Pedro Costa">Pedro Costa</option>
                             </select>
                             <input type="number" id="sale-value" placeholder="Valor da venda (R$)">
                             <textarea id="sale-description" placeholder="Descrição dos itens" rows="4"></textarea>
@@ -135,10 +154,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="action-buttons">
-                <button id="logout-btn" class="secondary"><i class="fas fa-sign-out-alt"></i> Sair</button>
             </div>
         </div>
     </div>
@@ -163,20 +178,12 @@
         </div>
     </nav>
 
-    <!-- Modal para pagamento -->
-    <div id="payment-modal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Registrar Pagamento</h2>
-                <span class="close">&times;</span>
-            </div>
-            <div class="modal-body">
-                <input type="number" id="payment-value" placeholder="Valor do pagamento (R$)">
-                <button id="confirm-payment-btn" class="secondary">Confirmar Pagamento</button>
-            </div>
-        </div>
-    </div>
-
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+    
+    <!-- Nosso JavaScript -->
     <script src="js/app.js"></script>
 </body>
 </html>
