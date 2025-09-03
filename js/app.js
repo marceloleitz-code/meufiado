@@ -57,7 +57,7 @@ function saveTokenToFirestore(token) {
     .catch((error) => {
         console.error('Erro ao salvar token:', error);
     });
-}
+
 // Estado para produtos da compra atual
 let currentSaleProducts = [];
 
