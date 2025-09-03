@@ -11,55 +11,18 @@ const firebaseConfig = {
 // Inicializar o Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
 const messaging = firebase.messaging();
 
 // Estado global para o app
 const appState = {
     notifications: [],
-    userType: 'client'
+    userType: 'client',
+    currentUser: null,
+    customers: [],
+    transactions: [],
+    currentSaleProducts: []
 };
-
-// Solicitar permissão para notificações
-function requestNotificationPermission() {
-    console.log('Solicitando permissão...');
-    Notification.requestPermission().then((permission) => {
-        if (permission === 'granted') {
-            console.log('Permissão de notificação concedida.');
-            // Obter o token de registro
-            messaging.getToken({vapidKey: "SUA_CHAVE_VAPID_AQUI"}).then((currentToken) => {
-                if (currentToken) {
-                    console.log('Token:', currentToken);
-                    // Salvar o token no Firestore
-                    saveTokenToFirestore(currentToken);
-                } else {
-                    console.log('Não foi possível obter o token de notificação.');
-                }
-            }).catch((err) => {
-                console.log('Ocorreu um erro ao recuperar o token:', err);
-            });
-        } else {
-            console.log('Permissão de notificação negada.');
-        }
-    });
-}
-
-// Salvar token no Firestore
-function saveTokenToFirestore(token) {
-    // Para um app real, você usaria o ID de usuário do seu sistema
-    const userRef = db.collection('users').doc('cliente123');
-    userRef.set({
-        messagingToken: token,
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true })
-    .then(() => {
-        console.log('Token salvo com sucesso!');
-    })
-    .catch((error) => {
-        console.error('Erro ao salvar token:', error);
-    });
-
-// Estado para produtos da compra atual
-let currentSaleProducts = [];
 
 // Função para formatar moeda
 function formatCurrency(value) {
@@ -71,8 +34,8 @@ function formatCurrency(value) {
 
 // Função para atualizar o resumo da venda
 function updateSaleSummary() {
-    const totalItems = currentSaleProducts.reduce((sum, product) => sum + product.quantity, 0);
-    const totalValue = currentSaleProducts.reduce((sum, product) => sum + (product.price * product.quantity), 0);
+    const totalItems = appState.currentSaleProducts.reduce((sum, product) => sum + product.quantity, 0);
+    const totalValue = appState.currentSaleProducts.reduce((sum, product) => sum + (product.price * product.quantity), 0);
     
     document.getElementById('total-items').textContent = totalItems;
     document.getElementById('total-value').textContent = formatCurrency(totalValue);
@@ -82,7 +45,7 @@ function updateSaleSummary() {
 function renderProductsList() {
     const container = document.getElementById('products-list');
     
-    if (currentSaleProducts.length === 0) {
+    if (appState.currentSaleProducts.length === 0) {
         container.innerHTML = `
             <div class="help-text">
                 <i class="fas fa-shopping-cart"></i>
@@ -94,7 +57,7 @@ function renderProductsList() {
     
     container.innerHTML = '';
     
-    currentSaleProducts.forEach((product, index) => {
+    appState.currentSaleProducts.forEach((product, index) => {
         const productElement = document.createElement('div');
         productElement.className = 'product-item';
         productElement.innerHTML = `
@@ -133,6 +96,8 @@ function renderProductsList() {
             deleteProduct(index);
         });
     });
+    
+    updateSaleSummary();
 }
 
 // Função para adicionar produto
@@ -153,9 +118,8 @@ function addProduct() {
         price: price
     };
     
-    currentSaleProducts.push(product);
+    appState.currentSaleProducts.push(product);
     renderProductsList();
-    updateSaleSummary();
     
     // Limpar o formulário
     document.getElementById('product-name').value = '';
@@ -168,7 +132,7 @@ function addProduct() {
 
 // Função para editar produto
 function editProduct(index) {
-    const product = currentSaleProducts[index];
+    const product = appState.currentSaleProducts[index];
     
     // Preencher o modal com os dados do produto
     document.getElementById('product-name').value = product.name;
@@ -197,15 +161,14 @@ function updateProduct(index) {
         return;
     }
     
-    currentSaleProducts[index] = {
-        ...currentSaleProducts[index],
+    appState.currentSaleProducts[index] = {
+        ...appState.currentSaleProducts[index],
         name: name,
         quantity: quantity,
         price: price
     };
     
     renderProductsList();
-    updateSaleSummary();
     
     // Limpar e resetar o modal
     document.getElementById('product-modal').classList.add('hidden');
@@ -222,185 +185,52 @@ function updateProduct(index) {
 // Função para deletar produto
 function deleteProduct(index) {
     if (confirm('Tem certeza que deseja remover este produto?')) {
-        currentSaleProducts.splice(index, 1);
+        appState.currentSaleProducts.splice(index, 1);
         renderProductsList();
-        updateSaleSummary();
     }
 }
 
-// Função para mostrar detalhes da venda
-function showSaleDetails(sale) {
-    const modalContent = document.getElementById('sale-details-content');
-    
-    try {
-        const products = typeof sale.products === 'string' ? JSON.parse(sale.products) : sale.products;
-        const total = products.reduce((sum, product) => sum + (product.price * product.quantity), 0);
-        
-        modalContent.innerHTML = `
-            <div class="sale-details">
-                <div class="detail-item">
-                    <div class="detail-label">Cliente</div>
-                    <div class="detail-value">${sale.client_name || 'N/A'}</div>
-                </div>
-                
-                <div class="detail-item">
-                    <div class="detail-label">Data</div>
-                    <div class="detail-value">${new Date(sale.created_at).toLocaleDateString('pt-BR')}</div>
-                </div>
-                
-                <div class="detail-item">
-                    <div class="detail-label">Observações</div>
-                    <div class="detail-value">${sale.notes || 'Nenhuma'}</div>
-                </div>
-                
-                <h3>Produtos</h3>
-                <table class="products-table">
-                    <thead>
-                        <tr>
-                            <th>Produto</th>
-                            <th>Qtd</th>
-                            <th>Preço Unit.</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${products.map(product => `
-                            <tr>
-                                <td>${product.name}</td>
-                                <td>${product.quantity}</td>
-                                <td>${formatCurrency(product.price)}</td>
-                                <td class="text-right">${formatCurrency(product.price * product.quantity)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="3" style="text-align: right; font-weight: bold;">Total:</td>
-                            <td class="text-right" style="font-weight: bold;">${formatCurrency(total)}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        `;
-    } catch (error) {
-        modalContent.innerHTML = `
-            <div class="help-text">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>Erro ao carregar detalhes da venda.</p>
-            </div>
-        `;
-    }
-    
-    document.getElementById('sale-details-modal').classList.remove('hidden');
-}
-
-// Event Listeners para os novos elementos
-document.getElementById('add-product-button').addEventListener('click', function() {
-    // Resetar o modal
-    document.getElementById('product-name').value = '';
-    document.getElementById('product-quantity').value = '1';
-    document.getElementById('product-price').value = '';
-    
-    // Configurar o botão para adicionar
-    const addBtn = document.getElementById('add-product-btn');
-    addBtn.textContent = 'Adicionar Produto';
-    addBtn.onclick = addProduct;
-    
-    // Mostrar o modal
-    document.getElementById('product-modal').classList.remove('hidden');
-});
-
-document.getElementById('add-product-btn').addEventListener('click', addProduct);
-
-// Fechar modais quando clicar no X
-document.querySelectorAll('.close').forEach(closeBtn => {
-    closeBtn.addEventListener('click', function() {
-        const modalId = this.getAttribute('data-modal');
-        document.getElementById(modalId).classList.add('hidden');
-    });
-});
-
-// Fechar modais quando clicar fora deles
-window.addEventListener('click', function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.classList.add('hidden');
-    }
-});
-
-// Modificar a função de registrar venda
-document.getElementById('register-sale-btn').addEventListener('click', async function() {
-    const clientSelect = document.getElementById('client-select');
-    const clientId = clientSelect.value;
-    const notes = document.getElementById('sale-notes').value.trim();
-    
-    if (!clientId) {
-        alert('Por favor, selecione um cliente.');
-        return;
-    }
-    
-    if (currentSaleProducts.length === 0) {
-        alert('Por favor, adicione pelo menos um produto.');
-        return;
-    }
-    
-    try {
-        showLoading('Registrando venda...');
-        
-        // Calcular o total
-        const total = currentSaleProducts.reduce((sum, product) => sum + (product.price * product.quantity), 0);
-        
-        // Registrar a venda no Supabase
-        const { data, error } = await supabase
-            .from('sales')
-            .insert([
-                {
-                    client_id: clientId,
-                    products: currentSaleProducts,
-                    total_amount: total,
-                    notes: notes,
-                    user_id: appState.currentUser.id
+// Solicitar permissão para notificações
+function requestNotificationPermission() {
+    console.log('Solicitando permissão...');
+    Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+            console.log('Permissão de notificação concedida.');
+            // Obter o token de registro
+            messaging.getToken({vapidKey: "SUA_CHAVE_VAPID_AQUI"}).then((currentToken) => {
+                if (currentToken) {
+                    console.log('Token:', currentToken);
+                    // Salvar o token no Firestore
+                    saveTokenToFirestore(currentToken);
+                } else {
+                    console.log('Não foi possível obter o token de notificação.');
                 }
-            ])
-            .select();
-        
-        if (error) throw error;
-        
-        // Registrar também como transação
-        const { error: transactionError } = await supabase
-            .from('transactions')
-            .insert([
-                {
-                    user_id: clientId,
-                    amount: total,
-                    type: 'debit',
-                    description: `Compra - ${currentSaleProducts.length} itens`,
-                    sale_id: data[0].id
-                }
-            ]);
-        
-        if (transactionError) throw transactionError;
-        
-        alert('Venda registrada com sucesso!');
-        
-        // Limpar o formulário
-        currentSaleProducts = [];
-        renderProductsList();
-        updateSaleSummary();
-        document.getElementById('sale-notes').value = '';
-        clientSelect.value = '';
-        
-        // Recarregar os dados
-        if (appState.userType === 'merchant') {
-            loadMerchantData();
+            }).catch((err) => {
+                console.log('Ocorreu um erro ao recuperar o token:', err);
+            });
+        } else {
+            console.log('Permissão de notificação negada.');
         }
-        
-        hideLoading();
-    } catch (error) {
-        hideLoading();
-        handleSupabaseError(error, 'registro de venda');
-    }
-});
+    });
 }
+
+// Salvar token no Firestore
+function saveTokenToFirestore(token) {
+    if (!appState.currentUser) return;
+    
+    const userRef = db.collection('users').doc(appState.currentUser.uid);
+    userRef.set({
+        messagingToken: token,
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true })
+    .then(() => {
+        console.log('Token salvo com sucesso!');
+    })
+    .catch((error) => {
+        console.error('Erro ao salvar token:', error);
+    });
+}
+
 // Escutar mensagens em primeiro plano
 messaging.onMessage((payload) => {
     console.log('Mensagem recebida em primeiro plano:', payload);
@@ -419,7 +249,7 @@ messaging.onMessage((payload) => {
     if (Notification.permission === 'granted') {
         new Notification(payload.notification.title, {
             body: payload.notification.body,
-            icon: '/icon.png' // Altere para o caminho do seu ícone
+            icon: 'https://example.com/icon.png' // URL do ícone
         });
     }
 });
@@ -484,90 +314,65 @@ function renderNotifications() {
     });
 }
 
-// Eventos
-document.getElementById('client-btn').addEventListener('click', function() {
-    appState.userType = 'client';
-    this.classList.add('active');
-    document.getElementById('merchant-btn').classList.remove('active');
-    renderView('home');
-});
+// Funções para mostrar/ocultar interfaces
+function showLogin() {
+    document.getElementById('login-section').classList.remove('hidden');
+    document.getElementById('dashboard').classList.add('hidden');
+    document.getElementById('main-nav').classList.add('hidden');
+}
 
-document.getElementById('merchant-btn').addEventListener('click', function() {
-    appState.userType = 'merchant';
-    this.classList.add('active');
-    document.getElementById('client-btn').classList.remove('active');
-    renderView('home');
-});
-
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', function() {
-        const parent = this.closest('.tabs');
-        parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        this.classList.add('active');
-        
-        const tabName = this.getAttribute('data-tab');
-        const tabContainer = this.closest('.tab-content');
-        
-        tabContainer.querySelectorAll('[id$="-tab"]').forEach(tabContent => {
-            tabContent.classList.add('hidden');
-        });
-        
-        tabContainer.querySelector(`#${tabName}-tab`).classList.remove('hidden');
-    });
-});
-
-document.getElementById('login-btn').addEventListener('click', function() {
+function showDashboard() {
     document.getElementById('login-section').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
     document.getElementById('main-nav').classList.remove('hidden');
-    
-    // Solicitar permissão para notificações após o login
-    requestNotificationPermission();
-    
-    renderView('home');
-    alert('Login realizado com sucesso!');
-});
+}
 
 // Função para registrar a venda no Firestore
-document.getElementById('register-sale-btn').addEventListener('click', function() {
-    const clientName = document.getElementById('client-select').value;
-    const value = document.getElementById('sale-value').value;
-    const description = document.getElementById('sale-description').value;
+async function registerSale() {
+    const clientSelect = document.getElementById('client-select');
+    const clientName = clientSelect.value;
+    const notes = document.getElementById('sale-notes').value.trim();
     
-    if (clientName && value > 0) {
-        // Adicionar um novo documento com um ID gerado automaticamente
-        db.collection('transactions').add({
-            clientName: clientName,
-            value: parseFloat(value),
-            description: description,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        })
-        .then((docRef) => {
-            console.log("Documento escrito com ID: ", docRef.id);
-            alert(`Venda para ${clientName} no valor de R$${value} registrada com sucesso.`);
-            
-            // Limpar formulário
-            document.getElementById('sale-value').value = '';
-            document.getElementById('sale-description').value = '';
-        })
-        .catch((error) => {
-            console.error("Erro ao adicionar documento: ", error);
-            alert("Erro ao registrar venda. Tente novamente.");
-        });
-    } else {
-        alert('Por favor, selecione um cliente e insira um valor válido.');
+    if (!clientName) {
+        alert('Por favor, selecione um cliente.');
+        return;
     }
-});
+    
+    if (appState.currentSaleProducts.length === 0) {
+        alert('Por favor, adicione pelo menos um produto.');
+        return;
+    }
+    
+    try {
+        // Calcular o total
+        const total = appState.currentSaleProducts.reduce((sum, product) => sum + (product.price * product.quantity), 0);
+        
+        // Registrar a venda no Firestore
+        const docRef = await db.collection('sales').add({
+            clientName: clientName,
+            products: appState.currentSaleProducts,
+            totalAmount: total,
+            notes: notes,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            userId: appState.currentUser ? appState.currentUser.uid : 'demo-user'
+        });
+        
+        console.log("Venda registrada com ID: ", docRef.id);
+        alert(`Venda para ${clientName} no valor de ${formatCurrency(total)} registrada com sucesso!`);
+        
+        // Limpar o formulário
+        appState.currentSaleProducts = [];
+        renderProductsList();
+        document.getElementById('sale-notes').value = '';
+        clientSelect.value = '';
+        
+    } catch (error) {
+        console.error("Erro ao registrar venda: ", error);
+        alert("Erro ao registrar venda. Tente novamente.");
+    }
+}
 
-// Navegação inferior
-document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', function() {
-        const view = this.getAttribute('data-view');
-        renderView(view);
-    });
-});
-
-// Simular notificações para demonstração (remova em produção)
+// Simular notificações para demonstração
 function simulateNotification() {
     const notifications = [
         {
@@ -594,10 +399,111 @@ function simulateNotification() {
     if (Notification.permission === 'granted') {
         new Notification(randomNotif.title, {
             body: randomNotif.content,
-            icon: 'https://example.com/icon.png' // URL do ícone
+            icon: 'https://example.com/icon.png'
         });
     }
 }
+
+// Event Listeners
+document.getElementById('client-btn').addEventListener('click', function() {
+    appState.userType = 'client';
+    this.classList.add('active');
+    document.getElementById('merchant-btn').classList.remove('active');
+    renderView('home');
+});
+
+document.getElementById('merchant-btn').addEventListener('click', function() {
+    appState.userType = 'merchant';
+    this.classList.add('active');
+    document.getElementById('client-btn').classList.remove('active');
+    renderView('home');
+});
+
+document.getElementById('login-btn').addEventListener('click', function() {
+    document.getElementById('login-section').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    document.getElementById('main-nav').classList.remove('hidden');
+    
+    // Solicitar permissão para notificações após o login
+    requestNotificationPermission();
+    
+    renderView('home');
+    alert('Login realizado com sucesso! (Modo demonstração)');
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        const parent = this.closest('.tabs');
+        parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        
+        const tabName = this.getAttribute('data-tab');
+        const tabContainer = this.closest('.tab-content');
+        
+        tabContainer.querySelectorAll('[id$="-tab"]').forEach(tabContent => {
+            tabContent.classList.add('hidden');
+        });
+        
+        tabContainer.querySelector(`#${tabName}-tab`).classList.remove('hidden');
+    });
+});
+
+document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', function() {
+        const view = this.getAttribute('data-view');
+        renderView(view);
+    });
+});
+
+// Event Listeners para produtos
+document.getElementById('add-product-button').addEventListener('click', function() {
+    // Resetar o modal
+    document.getElementById('product-name').value = '';
+    document.getElementById('product-quantity').value = '1';
+    document.getElementById('product-price').value = '';
+    
+    // Configurar o botão para adicionar
+    const addBtn = document.getElementById('add-product-btn');
+    addBtn.textContent = 'Adicionar Produto';
+    addBtn.onclick = addProduct;
+    
+    // Mostrar o modal
+    document.getElementById('product-modal').classList.remove('hidden');
+});
+
+document.getElementById('add-product-btn').addEventListener('click', addProduct);
+
+// Fechar modais quando clicar no X
+document.querySelectorAll('.close').forEach(closeBtn => {
+    closeBtn.addEventListener('click', function() {
+        const modalId = this.getAttribute('data-modal');
+        document.getElementById(modalId).classList.add('hidden');
+    });
+});
+
+// Fechar modais quando clicar fora deles
+window.addEventListener('click', function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.classList.add('hidden');
+    }
+});
+
+// Registrar venda
+document.getElementById('register-sale-btn').addEventListener('click', registerSale);
+
+// Inicialização
+showLogin();
+
+// Verificar se o usuário já está logado (para demonstração)
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        appState.currentUser = user;
+        showDashboard();
+        renderView('home');
+    } else {
+        showLogin();
+    }
+});
 
 // Simular notificação a cada 30 segundos para demonstração
 setInterval(simulateNotification, 30000);
