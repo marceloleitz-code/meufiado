@@ -129,7 +129,7 @@ input:focus, select:focus, textarea:focus {
 
 button {
     background-color: var(--primary);
-    color: white;
+    color: var(--dark);
     border: none;
     padding: 14px;
     border-radius: 8px;
@@ -159,7 +159,7 @@ button.secondary:hover {
 .balance {
     text-align: center;
     padding: 25px 20px;
-    background: linear-gradient(135deg, #6ecf71, #4CAF50);
+    background: linear-gradient(135deg, #f4d936, #ff5522);
     border-radius: 12px;
     margin-bottom: 20px;
     color: white;
