@@ -1,31 +1,86 @@
-// Configuração do Supabase - SUBSTITUA com suas credenciais
-const SUPABASE_URL = 'https://ejngsvsvdjtgofdcgumv.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqbmdzdnN2ZGp0Z29mZGNndW12Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4NTk0MTUsImV4cCI6MjA3MjQzNTQxNX0.s3hsUn-V4pTSTC5sIu7YnHz3cAtm72bETDyNQW4aO3A';
+// Configuração do Firebase - SUBSTITUA com as credenciais do seu projeto
+const firebaseConfig = {
+    apiKey: "SUA_API_KEY",
+    authDomain: "SEU_PROJETO.firebaseapp.com",
+    projectId: "SEU_PROJETO_ID",
+    storageBucket: "SEU_PROJETO.appspot.com",
+    messagingSenderId: "SEU_SENDER_ID",
+    appId: "SEU_APP_ID"
+};
 
-// Inicializar o Supabase
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Inicializar o Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const messaging = firebase.messaging();
 
 // Estado global para o app
 const appState = {
     notifications: [],
-    userType: 'client',
-    currentUser: null,
-    customers: [],
-    transactions: []
+    userType: 'client'
 };
 
-// Função para verificar e exibir erros do Supabase
-function handleSupabaseError(error, context) {
-    console.error(`Erro no ${context}:`, error);
-    
-    if (error.code === 'PGRST301') {
-        alert('Erro de configuração. Verifique se as tabelas foram criadas corretamente.');
-    } else if (error.code === 'PGRST116') {
-        alert('Caminho inválido. Verifique a URL do Supabase.');
-    } else {
-        alert(`Erro: ${error.message}`);
-    }
+// Solicitar permissão para notificações
+function requestNotificationPermission() {
+    console.log('Solicitando permissão...');
+    Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+            console.log('Permissão de notificação concedida.');
+            // Obter o token de registro
+            messaging.getToken({vapidKey: "SUA_CHAVE_VAPID_AQUI"}).then((currentToken) => {
+                if (currentToken) {
+                    console.log('Token:', currentToken);
+                    // Salvar o token no Firestore
+                    saveTokenToFirestore(currentToken);
+                } else {
+                    console.log('Não foi possível obter o token de notificação.');
+                }
+            }).catch((err) => {
+                console.log('Ocorreu um erro ao recuperar o token:', err);
+            });
+        } else {
+            console.log('Permissão de notificação negada.');
+        }
+    });
 }
+
+// Salvar token no Firestore
+function saveTokenToFirestore(token) {
+    // Para um app real, você usaria o ID de usuário do seu sistema
+    const userRef = db.collection('users').doc('cliente123');
+    userRef.set({
+        messagingToken: token,
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true })
+    .then(() => {
+        console.log('Token salvo com sucesso!');
+    })
+    .catch((error) => {
+        console.error('Erro ao salvar token:', error);
+    });
+}
+
+// Escutar mensagens em primeiro plano
+messaging.onMessage((payload) => {
+    console.log('Mensagem recebida em primeiro plano:', payload);
+    
+    // Adicionar notificação ao estado local
+    const newNotification = {
+        title: payload.notification.title,
+        content: payload.notification.body,
+        time: new Date().toLocaleTimeString()
+    };
+    
+    appState.notifications.unshift(newNotification);
+    updateNotificationBadge();
+    
+    // Mostrar notificação
+    if (Notification.permission === 'granted') {
+        new Notification(payload.notification.title, {
+            body: payload.notification.body,
+            icon: '/icon.png' // Altere para o caminho do seu ícone
+        });
+    }
+});
 
 // Funções para gerenciar a interface do usuário
 function renderView(viewName) {
@@ -38,10 +93,8 @@ function renderView(viewName) {
         renderNotifications();
     } else if (appState.userType === 'client') {
         document.getElementById('client-view').classList.remove('hidden');
-        loadClientData();
     } else {
         document.getElementById('merchant-view').classList.remove('hidden');
-        loadMerchantData();
     }
     
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -52,225 +105,157 @@ function renderView(viewName) {
     });
 }
 
-// ... (o restante das funções permanecem iguais até as funções de autenticação)
-
-// Funções de autenticação
-async function signUp(email, password) {
-    try {
-        showLoading('Criando conta...');
-        const { data, error } = await supabase.auth.signUp({
-            email: email,
-            password: password,
-        });
-        
-        if (error) {
-            handleSupabaseError(error, 'cadastro');
-            return null;
-        }
-        
-        hideLoading();
-        return data;
-    } catch (error) {
-        hideLoading();
-        handleSupabaseError(error, 'cadastro');
-        return null;
+function updateNotificationBadge() {
+    const badge = document.getElementById('notification-badge');
+    const count = appState.notifications.length;
+    if (count > 0) {
+        badge.textContent = count;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
     }
 }
 
-async function signIn(email, password) {
-    try {
-        showLoading('Fazendo login...');
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password,
-        });
-        
-        if (error) {
-            handleSupabaseError(error, 'login');
-            return null;
-        }
-        
-        hideLoading();
-        return data;
-    } catch (error) {
-        hideLoading();
-        handleSupabaseError(error, 'login');
-        return null;
+function renderNotifications() {
+    const list = document.getElementById('notifications-list');
+    list.innerHTML = '';
+    
+    if (appState.notifications.length === 0) {
+        list.innerHTML = `
+            <div class="help-text">
+                <i class="far fa-bell"></i>
+                <p>Nenhuma notificação por enquanto.</p>
+            </div>
+        `;
+        return;
     }
-}
-
-// Funções para carregar dados
-// Testar conexão com Supabase
-async function testConnection() {
-    try {
-        const { data, error } = await supabase.from('profiles').select('count');
-        
-        if (error) {
-            console.log('Erro ao conectar com Supabase:', error);
-            if (error.code === 'PGRST301') {
-                console.log('Tabela não existe. Criando dados de demonstração...');
-                createDemoData();
-            }
-        } else {
-            console.log('Conexão com Supabase bem-sucedida!');
-        }
-    } catch (error) {
-        console.log('Erro geral de conexão:', error);
-        createDemoData(); // Usar dados locais em caso de erro
-    }
-}
-
-// Executar teste de conexão após inicialização
-setTimeout(testConnection, 1000);
-async function loadClientData() {
-    if (!appState.currentUser) return;
     
-    try {
-        showLoading('Carregando dados...');
-        
-        // Primeiro verifica se a tabela existe tentando contar os registros
-        const { count, error: countError } = await supabase
-            .from('transactions')
-            .select('*', { count: 'exact', head: true });
-            
-        if (countError && countError.code === 'PGRST301') {
-            // Tabela não existe, vamos criar dados de demonstração
-            createDemoData();
-            hideLoading();
-            return;
-        }
-        
-        // Carregar transações do cliente
-        const { data: transactions, error } = await supabase
-            .from('transactions')
-            .select('*')
-            .eq('user_id', appState.currentUser.id)
-            .order('created_at', { ascending: false });
-        
-        if (error) {
-            if (error.code === 'PGRST301' || error.code === '42P01') {
-                // Tabela não existe, criar dados de demonstração
-                createDemoData();
-            } else {
-                handleSupabaseError(error, 'carregamento de transações');
-            }
-        } else {
-            appState.transactions = transactions || [];
-            renderClientTransactions();
-            updateClientBalance();
-        }
-        
-        hideLoading();
-    } catch (error) {
-        hideLoading();
-        handleSupabaseError(error, 'carregamento de dados do cliente');
-    }
-}
-
-// Função para criar dados de demonstração (usada se as tabelas não existirem)
-function createDemoData() {
-    console.log('Criando dados de demonstração...');
-    
-    // Dados de exemplo
-    appState.transactions = [
-        {
-            id: '1',
-            amount: 45.90,
-            type: 'debit',
-            description: 'Compra no mercadinho',
-            created_at: new Date('2023-05-20T14:32:00').toISOString()
-        },
-        {
-            id: '2',
-            amount: 100.00,
-            type: 'credit',
-            description: 'Pagamento realizado',
-            created_at: new Date('2023-05-15T09:15:00').toISOString()
-        }
-    ];
-    
-    appState.customers = [
-        {
-            id: '1',
-            email: 'maria.silva@email.com',
-            name: 'Maria Silva',
-            is_client: true
-        },
-        {
-            id: '2',
-            email: 'joao.santos@email.com',
-            name: 'João Santos',
-            is_client: true
-        }
-    ];
-    
-    renderClientTransactions();
-    updateClientBalance();
-    renderCustomers();
-    updateMerchantBalance();
-    
-    // Preencher select de clientes
-    const clientSelect = document.getElementById('client-select');
-    clientSelect.innerHTML = '<option value="" disabled selected>Selecione o cliente</option>';
-    
-    appState.customers.forEach(customer => {
-        const option = document.createElement('option');
-        option.value = customer.id;
-        option.textContent = customer.name || customer.email;
-        clientSelect.appendChild(option);
+    appState.notifications.forEach(notif => {
+        const item = document.createElement('div');
+        item.classList.add('notification-item');
+        item.innerHTML = `
+            <div class="notification-title">${notif.title}</div>
+            <div class="notification-content">${notif.content}</div>
+            <div class="notification-time">${notif.time}</div>
+        `;
+        list.appendChild(item);
     });
 }
 
-// Funções para mostrar/ocultar loading
-function showLoading(message = 'Carregando...') {
-    // Criar ou mostrar elemento de loading
-    let loadingEl = document.getElementById('loading');
-    if (!loadingEl) {
-        loadingEl = document.createElement('div');
-        loadingEl.id = 'loading';
-        loadingEl.className = 'loading';
-        loadingEl.innerHTML = `
-            <div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i></div>
-            <div class="loading-message">${message}</div>
-        `;
-        document.body.appendChild(loadingEl);
+// Eventos
+document.getElementById('client-btn').addEventListener('click', function() {
+    appState.userType = 'client';
+    this.classList.add('active');
+    document.getElementById('merchant-btn').classList.remove('active');
+    renderView('home');
+});
+
+document.getElementById('merchant-btn').addEventListener('click', function() {
+    appState.userType = 'merchant';
+    this.classList.add('active');
+    document.getElementById('client-btn').classList.remove('active');
+    renderView('home');
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        const parent = this.closest('.tabs');
+        parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        
+        const tabName = this.getAttribute('data-tab');
+        const tabContainer = this.closest('.tab-content');
+        
+        tabContainer.querySelectorAll('[id$="-tab"]').forEach(tabContent => {
+            tabContent.classList.add('hidden');
+        });
+        
+        tabContainer.querySelector(`#${tabName}-tab`).classList.remove('hidden');
+    });
+});
+
+document.getElementById('login-btn').addEventListener('click', function() {
+    document.getElementById('login-section').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    document.getElementById('main-nav').classList.remove('hidden');
+    
+    // Solicitar permissão para notificações após o login
+    requestNotificationPermission();
+    
+    renderView('home');
+    alert('Login realizado com sucesso!');
+});
+
+// Função para registrar a venda no Firestore
+document.getElementById('register-sale-btn').addEventListener('click', function() {
+    const clientName = document.getElementById('client-select').value;
+    const value = document.getElementById('sale-value').value;
+    const description = document.getElementById('sale-description').value;
+    
+    if (clientName && value > 0) {
+        // Adicionar um novo documento com um ID gerado automaticamente
+        db.collection('transactions').add({
+            clientName: clientName,
+            value: parseFloat(value),
+            description: description,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        })
+        .then((docRef) => {
+            console.log("Documento escrito com ID: ", docRef.id);
+            alert(`Venda para ${clientName} no valor de R$${value} registrada com sucesso.`);
+            
+            // Limpar formulário
+            document.getElementById('sale-value').value = '';
+            document.getElementById('sale-description').value = '';
+        })
+        .catch((error) => {
+            console.error("Erro ao adicionar documento: ", error);
+            alert("Erro ao registrar venda. Tente novamente.");
+        });
     } else {
-        loadingEl.querySelector('.loading-message').textContent = message;
-        loadingEl.classList.remove('hidden');
+        alert('Por favor, selecione um cliente e insira um valor válido.');
+    }
+});
+
+// Navegação inferior
+document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', function() {
+        const view = this.getAttribute('data-view');
+        renderView(view);
+    });
+});
+
+// Simular notificações para demonstração (remova em produção)
+function simulateNotification() {
+    const notifications = [
+        {
+            title: 'Pagamento Recebido',
+            content: 'João Santos realizou um pagamento de R$ 50,00'
+        },
+        {
+            title: 'Nova Compra',
+            content: 'Maria Silva realizou uma compra de R$ 35,50'
+        },
+        {
+            title: 'Fiado em Atraso',
+            content: 'Pedro Costa está com pagamento atrasado há 5 dias'
+        }
+    ];
+    
+    const randomNotif = notifications[Math.floor(Math.random() * notifications.length)];
+    randomNotif.time = new Date().toLocaleTimeString();
+    
+    appState.notifications.unshift(randomNotif);
+    updateNotificationBadge();
+    
+    // Mostrar notificação real se permitido
+    if (Notification.permission === 'granted') {
+        new Notification(randomNotif.title, {
+            body: randomNotif.content,
+            icon: 'https://example.com/icon.png' // URL do ícone
+        });
     }
 }
 
-function hideLoading() {
-    const loadingEl = document.getElementById('loading');
-    if (loadingEl) {
-        loadingEl.classList.add('hidden');
-    }
-}
-
-// ... (o restante do código permanece similar, mas com tratamento de erro adicionado)
-
-// Inicialização
-showLogin();
-
-// Verificar se o usuário já está logado
-supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session && session.user) {
-        appState.currentUser = session.user;
-        showDashboard();
-        renderView('home');
-    }
-}).catch(error => {
-    console.error('Erro ao verificar sessão:', error);
-});
-
-// Ouvir mudanças de autenticação
-supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_IN' && session && session.user) {
-        appState.currentUser = session.user;
-        showDashboard();
-        renderView('home');
-    } else if (event === 'SIGNED_OUT') {
-        appState.currentUser = null;
-        showLogin();
-    }
-});
+// Simular notificação a cada 30 segundos para demonstração
+setInterval(simulateNotification, 30000);
