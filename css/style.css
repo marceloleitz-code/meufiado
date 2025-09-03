@@ -445,6 +445,27 @@ nav {
 .firebase-config li {
     margin-bottom: 10px;
 }
+/* Garantir que modais estejam ocultos por padrão */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal:not(.hidden) {
+    display: flex;
+}
 // Estado para produtos da compra atual
 let currentSaleProducts = [];
 
