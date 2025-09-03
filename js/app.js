@@ -221,6 +221,35 @@ function renderView(viewName) {
     });
 }
 
+// Função para alternar entre abas
+function switchTab(tabElement) {
+    // Encontrar o container de abas
+    const tabsContainer = tabElement.closest('.tabs');
+    const tabContent = tabsContainer.nextElementSibling;
+    
+    // Remover classe active de todas as abas
+    tabsContainer.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Adicionar classe active à aba clicada
+    tabElement.classList.add('active');
+    
+    // Obter o ID da aba a ser mostrada
+    const tabName = tabElement.getAttribute('data-tab');
+    
+    // Ocultar todo o conteúdo de abas
+    tabContent.querySelectorAll('[id$="-tab"]').forEach(tabContentElement => {
+        tabContentElement.classList.add('hidden');
+    });
+    
+    // Mostrar a aba selecionada
+    const selectedTab = document.getElementById(`${tabName}-tab`);
+    if (selectedTab) {
+        selectedTab.classList.remove('hidden');
+    }
+}
+
 // Funções para mostrar/ocultar interfaces
 function showLogin() {
     document.getElementById('login-section').classList.remove('hidden');
@@ -283,20 +312,10 @@ document.getElementById('login-btn').addEventListener('click', function() {
     alert('Login realizado com sucesso! (Modo demonstração)');
 });
 
+// Adicionar event listener para as abas
 document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', function() {
-        const parent = this.closest('.tabs');
-        parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        this.classList.add('active');
-        
-        const tabName = this.getAttribute('data-tab');
-        const tabContainer = this.closest('.tab-content');
-        
-        tabContainer.querySelectorAll('[id$="-tab"]').forEach(tabContent => {
-            tabContent.classList.add('hidden');
-        });
-        
-        tabContainer.querySelector(`#${tabName}-tab`).classList.remove('hidden');
+        switchTab(this);
     });
 });
 
