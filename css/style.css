@@ -52,6 +52,7 @@ header {
 
 .logo i {
     font-size: 28px;
+    color: var(--dark);
 }
 
 .logo h1 {
