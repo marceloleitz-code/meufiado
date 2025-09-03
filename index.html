@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MercadoFiado - Controle de Fiados</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <i class="fas fa-store"></i>
+            <h1>MercadoFiado</h1>
+        </div>
+        <p class="header-subtitle">Controle de fiados para clientes e comerciantes</p>
+    </header>
+    
+    <div class="container">
+        <div class="user-type">
+            <button class="user-type-btn active" id="client-btn">
+                <i class="fas fa-user"></i>
+                Sou Cliente
+            </button>
+            <button class="user-type-btn" id="merchant-btn">
+                <i class="fas fa-store"></i>
+                Sou Comerciante
+            </button>
+        </div>
+        
+        <div class="card" id="login-section">
+            <h2>Entrar na minha conta</h2>
+            <input type="email" id="email" placeholder="Seu e-mail">
+            <input type="password" id="password" placeholder="Sua senha">
+            <button id="login-btn"><i class="fas fa-sign-in-alt"></i> Entrar</button>
+            <button id="signup-btn" class="secondary"><i class="fas fa-user-plus"></i> Criar conta</button>
+        </div>
+        
+        <div id="dashboard" class="hidden">
+            <div id="client-view" class="view">
+                <div class="balance">
+                    <h3>Seu saldo de fiado</h3>
+                    <h2 id="client-balance">R$ 0,00</h2>
+                    <div class="balance-status" id="balance-status">Nenhuma transação</div>
+                </div>
+                
+                <div class="tabs">
+                    <div class="tab active" data-tab="transactions">
+                        <i class="fas fa-receipt"></i> Extrato
+                    </div>
+                    <div class="tab" data-tab="request">
+                        <i class="fas fa-hand-holding-usd"></i> Solicitar
+                    </div>
+                </div>
+                
+                <div class="tab-content">
+                    <div id="transactions-tab">
+                        <div class="transactions" id="client-transactions">
+                            <div class="help-text">
+                                <i class="fas fa-receipt"></i>
+                                <p>Nenhuma transação encontrada.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="request-tab" class="hidden">
+                        <div class="card">
+                            <h2>Solicitar aumento de fiado</h2>
+                            <input type="number" id="credit-request-value" placeholder="Valor solicitado (R$)">
+                            <textarea id="credit-request-reason" placeholder="Motivo da solicitação" rows="4"></textarea>
+                            <button id="request-credit-btn" class="secondary"><i class="fas fa-paper-plane"></i> Enviar solicitação</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button id="add-payment-btn"><i class="fas fa-money-bill-wave"></i> Registrar pagamento</button>
+                </div>
+            </div>
+            
+            <div id="merchant-view" class="hidden view">
+                <div class="balance">
+                    <h3>Total de fiados em aberto</h3>
+                    <h2 id="merchant-balance">R$ 0,00</h2>
+                    <p>Valor total a receber</p>
+                </div>
+                
+                <div class="tabs">
+                    <div class="tab active" data-tab="customers">
+                        <i class="fas fa-users"></i> Clientes
+                    </div>
+                    <div class="tab" data-tab="new-transaction">
+                        <i class="fas fa-cash-register"></i> Nova Venda
+                    </div>
+                </div>
+                
+                <div class="tab-content">
+                    <div id="customers-tab">
+                        <div class="search-bar">
+                            <input type="text" id="customer-search" placeholder="Buscar cliente...">
+                            <button id="search-btn"><i class="fas fa-search"></i></button>
+                        </div>
+                        <div class="transactions" id="merchant-customers">
+                            <div class="help-text">
+                                <i class="fas fa-users"></i>
+                                <p>Nenhum cliente encontrado.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="new-transaction-tab" class="hidden">
+                        <div class="card">
+                            <h2>Registrar nova venda</h2>
+                            <select id="client-select">
+                                <option value="" disabled selected>Selecione o cliente</option>
+                            </select>
+                            <input type="number" id="sale-value" placeholder="Valor da venda (R$)">
+                            <textarea id="sale-description" placeholder="Descrição dos itens" rows="4"></textarea>
+                            <button id="register-sale-btn" class="secondary"><i class="fas fa-save"></i> Registrar venda</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="notifications-view" class="hidden view">
+                <div class="card">
+                    <h2>Notificações</h2>
+                    <div id="notifications-list">
+                        <div class="help-text">
+                            <i class="far fa-bell"></i>
+                            <p>Nenhuma notificação por enquanto.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="logout-btn" class="secondary"><i class="fas fa-sign-out-alt"></i> Sair</button>
+            </div>
+        </div>
+    </div>
+    
+    <nav class="hidden" id="main-nav">
+        <div class="nav-item active" data-view="home">
+            <i class="fas fa-home"></i>
+            <span>Início</span>
+        </div>
+        <div class="nav-item" data-view="transactions">
+            <i class="fas fa-receipt"></i>
+            <span>Extrato</span>
+        </div>
+        <div class="nav-item" data-view="notifications">
+            <i class="fas fa-bell"></i>
+            <span>Notificações</span>
+            <div class="notification-badge hidden" id="notification-badge">0</div>
+        </div>
+        <div class="nav-item" data-view="profile">
+            <i class="fas fa-user"></i>
+            <span>Perfil</span>
+        </div>
+    </nav>
+
+    <!-- Modal para pagamento -->
+    <div id="payment-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Registrar Pagamento</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="number" id="payment-value" placeholder="Valor do pagamento (R$)">
+                <button id="confirm-payment-btn" class="secondary">Confirmar Pagamento</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
