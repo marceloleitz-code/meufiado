@@ -7,6 +7,34 @@ const firebaseConfig = {
     messagingSenderId: "SEU_SENDER_ID",
     appId: "SEU_APP_ID"
 };
+// Função para inicializar modais
+function initializeModals() {
+    // Fechar modais quando clicar no X
+    document.querySelectorAll('.close').forEach(closeBtn => {
+        closeBtn.addEventListener('click', function() {
+            const modalId = this.getAttribute('data-modal');
+            document.getElementById(modalId).classList.add('hidden');
+        });
+    });
+    
+    // Fechar modais quando clicar fora deles
+    window.addEventListener('click', function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.classList.add('hidden');
+        }
+    });
+    
+    // Garantir que todos os modais começam ocultos
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.classList.add('hidden');
+    });
+}
+
+// Chamar a inicialização no carregamento da página
+document.addEventListener('DOMContentLoaded', function() {
+    initializeModals();
+    showLogin();
+});
 
 // Inicializar o Firebase
 firebase.initializeApp(firebaseConfig);
