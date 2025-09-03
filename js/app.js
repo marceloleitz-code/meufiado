@@ -400,7 +400,7 @@ document.getElementById('register-sale-btn').addEventListener('click', async fun
         handleSupabaseError(error, 'registro de venda');
     }
 });
-
+}
 // Escutar mensagens em primeiro plano
 messaging.onMessage((payload) => {
     console.log('Mensagem recebida em primeiro plano:', payload);
