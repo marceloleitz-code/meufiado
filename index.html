@@ -92,6 +92,74 @@
                     <h2 id="merchant-balance">R$ 1.245,90</h2>
                     <p>Valor total a receber</p>
                 </div>
+                <!-- Modal para adicionar produtos -->
+<div id="product-modal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Adicionar Produto</h2>
+            <span class="close" data-modal="product-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+            <input type="text" id="product-name" placeholder="Nome do produto">
+            <input type="number" id="product-quantity" placeholder="Quantidade" min="1" value="1">
+            <input type="number" id="product-price" placeholder="Preço unitário (R$)" step="0.01" min="0">
+            <button id="add-product-btn" class="secondary">Adicionar Produto</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para visualizar detalhes da compra -->
+<div id="sale-details-modal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Detalhes da Compra</h2>
+            <span class="close" data-modal="sale-details-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="sale-details-content"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Container para lista de produtos -->
+<div id="new-transaction-tab" class="hidden">
+    <div class="card">
+        <h2>Registrar nova venda</h2>
+        <select id="client-select">
+            <option value="" disabled selected>Selecione o cliente</option>
+        </select>
+        
+        <div class="products-section">
+            <h3>Produtos da Compra</h3>
+            <div id="products-list" class="products-list">
+                <div class="help-text">
+                    <i class="fas fa-shopping-cart"></i>
+                    <p>Nenhum produto adicionado ainda.</p>
+                </div>
+            </div>
+            
+            <div class="products-actions">
+                <button id="add-product-button" class="secondary">
+                    <i class="fas fa-plus"></i> Adicionar Produto
+                </button>
+            </div>
+            
+            <div class="sale-summary">
+                <div class="summary-item">
+                    <span>Total de Itens:</span>
+                    <span id="total-items">0</span>
+                </div>
+                <div class="summary-item">
+                    <span>Valor Total:</span>
+                    <span id="total-value">R$ 0,00</span>
+                </div>
+            </div>
+        </div>
+        
+        <textarea id="sale-notes" placeholder="Observações adicionais" rows="3"></textarea>
+        <button id="register-sale-btn" class="secondary"><i class="fas fa-save"></i> Registrar Venda</button>
+    </div>
+</div>
                 
                 <div class="tabs">
                     <div class="tab active" data-tab="customers">
@@ -157,18 +225,7 @@
             </div>
         </div>
     </div>
-   
 
-
-
-
-            
-           
-        
-        <textarea id="sale-notes" placeholder="Observações adicionais" rows="3"></textarea>
-        <button id="register-sale-btn" class="secondary"><i class="fas fa-save"></i> Registrar Venda</button>
-    </div>
-</div>
     <nav class="hidden" id="main-nav">
         <div class="nav-item active" data-view="home">
             <i class="fas fa-home"></i>
