@@ -220,6 +220,43 @@
             </div>
         </div>
     </div>
+    <!-- Adicione esta nova aba no merchant-view -->
+<div class="tabs">
+    <div class="tab active" data-tab="customers">
+        <i class="fas fa-users"></i> Clientes
+    </div>
+    <div class="tab" data-tab="products">
+        <i class="fas fa-box"></i> Produtos
+    </div>
+    <div class="tab" data-tab="new-transaction">
+        <i class="fas fa-cash-register"></i> Nova Venda
+    </div>
+</div>
+
+<!-- Adicione esta seção no tab-content -->
+<div id="products-tab" class="hidden">
+    <div class="card">
+        <h2>Gerenciar Produtos</h2>
+        
+        <div class="search-bar">
+            <input type="text" id="product-search" placeholder="Buscar produto...">
+            <button id="search-product-btn"><i class="fas fa-search"></i></button>
+        </div>
+        
+        <div class="products-management">
+            <button id="add-new-product-btn" class="secondary">
+                <i class="fas fa-plus"></i> Adicionar Novo Produto
+            </button>
+            
+            <div id="products-management-list" class="products-list">
+                <div class="help-text">
+                    <i class="fas fa-box"></i>
+                    <p>Nenhum produto cadastrado ainda.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
