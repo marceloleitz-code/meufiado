@@ -262,6 +262,280 @@ function showDashboard() {
     document.getElementById('dashboard').classList.remove('hidden');
     document.getElementById('main-nav').classList.remove('hidden');
 }
+// Estado global para produtos
+appState.products = [];
+
+// Função para carregar produtos do Firebase
+async function loadProducts() {
+    try {
+        const { data: products, error } = await supabase
+            .from('products')
+            .select('*')
+            .order('name');
+        
+        if (error) throw error;
+        
+        appState.products = products || [];
+        renderProductsManagementList();
+        renderQuickProducts();
+    } catch (error) {
+        console.error('Erro ao carregar produtos:', error);
+        // Dados de exemplo para demonstração
+        appState.products = [
+            { id: 1, name: "Arroz", price: 25.90, category: "Alimentos" },
+            { id: 2, name: "Feijão", price: 8.50, category: "Alimentos" },
+            { id: 3, name: "Óleo", price: 7.20, category: "Alimentos" },
+            { id: 4, name: "Açúcar", price: 4.80, category: "Alimentos" },
+            { id: 5, name: "Café", price: 12.90, category: "Alimentos" }
+        ];
+        renderProductsManagementList();
+        renderQuickProducts();
+    }
+}
+
+// Função para renderizar a lista de gestão de produtos
+function renderProductsManagementList() {
+    const container = document.getElementById('products-management-list');
+    
+    if (appState.products.length === 0) {
+        container.innerHTML = `
+            <div class="help-text">
+                <i class="fas fa-box"></i>
+                <p>Nenhum produto cadastrado ainda.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    appState.products.forEach(product => {
+        const productElement = document.createElement('div');
+        productElement.className = 'product-management-item';
+        productElement.innerHTML = `
+            <div class="product-management-info">
+                <div class="product-management-name">${product.name}</div>
+                <div class="product-management-price">${formatCurrency(product.price)}</div>
+                ${product.category ? `<div class="product-management-category">Categoria: ${product.category}</div>` : ''}
+            </div>
+            <div class="product-management-actions">
+                <button class="product-management-btn btn-edit" data-id="${product.id}">
+                    <i class="fas fa-edit"></i> Editar
+                </button>
+                <button class="product-management-btn btn-delete" data-id="${product.id}">
+                    <i class="fas fa-trash"></i> Excluir
+                </button>
+            </div>
+        `;
+        
+        container.appendChild(productElement);
+    });
+    
+    // Adicionar event listeners para os botões
+    document.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.currentTarget.getAttribute('data-id');
+            editProductFromList(productId);
+        });
+    });
+    
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.currentTarget.getAttribute('data-id');
+            deleteProductFromList(productId);
+        });
+    });
+}
+
+// Função para renderizar produtos rápidos na venda
+function renderQuickProducts() {
+    const quickProductsContainer = document.getElementById('quick-products');
+    if (!quickProductsContainer) return;
+    
+    if (appState.products.length === 0) {
+        quickProductsContainer.innerHTML = '';
+        return;
+    }
+    
+    quickProductsContainer.innerHTML = `
+        <div class="quick-products-title">Produtos Rápidos:</div>
+        <div class="quick-products-grid">
+            ${appState.products.map(product => `
+                <div class="quick-product-item" data-id="${product.id}">
+                    <div class="quick-product-name">${product.name}</div>
+                    <div class="quick-product-price">${formatCurrency(product.price)}</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    // Adicionar event listeners para os produtos rápidos
+    document.querySelectorAll('.quick-product-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            const productId = e.currentTarget.getAttribute('data-id');
+            addQuickProductToSale(productId);
+        });
+    });
+}
+
+// Função para adicionar produto rápido à venda
+function addQuickProductToSale(productId) {
+    const product = appState.products.find(p => p.id == productId);
+    if (!product) return;
+    
+    // Preencher automaticamente o modal de adicionar produto
+    document.getElementById('product-name').value = product.name;
+    document.getElementById('product-price').value = product.price;
+    document.getElementById('product-quantity').value = 1;
+    
+    // Focar no botão de adicionar
+    setTimeout(() => {
+        document.getElementById('add-product-btn').focus();
+    }, 100);
+}
+
+// Função para adicionar novo produto à lista
+async function addNewProductToDatabase(productData) {
+    try {
+        const { data, error } = await supabase
+            .from('products')
+            .insert([productData])
+            .select();
+        
+        if (error) throw error;
+        
+        // Recarregar a lista de produtos
+        await loadProducts();
+        return data[0];
+    } catch (error) {
+        console.error('Erro ao adicionar produto:', error);
+        // Para demonstração, adicionar localmente
+        const newProduct = {
+            id: Date.now(),
+            ...productData
+        };
+        appState.products.push(newProduct);
+        renderProductsManagementList();
+        renderQuickProducts();
+        return newProduct;
+    }
+}
+
+// Função para editar produto da lista
+async function editProductFromList(productId) {
+    const product = appState.products.find(p => p.id == productId);
+    if (!product) return;
+    
+    // Preencher o modal de gestão com os dados do produto
+    document.getElementById('product-id').value = product.id;
+    document.getElementById('product-name-management').value = product.name;
+    document.getElementById('product-price-management').value = product.price;
+    document.getElementById('product-category').value = product.category || '';
+    
+    // Mostrar o modal de gestão
+    openModal('product-management-modal');
+}
+
+// Função para excluir produto da lista
+async function deleteProductFromList(productId) {
+    if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+    
+    try {
+        const { error } = await supabase
+            .from('products')
+            .delete()
+            .eq('id', productId);
+        
+        if (error) throw error;
+        
+        // Recarregar a lista de produtos
+        await loadProducts();
+    } catch (error) {
+        console.error('Erro ao excluir produto:', error);
+        // Para demonstração, remover localmente
+        appState.products = appState.products.filter(p => p.id != productId);
+        renderProductsManagementList();
+        renderQuickProducts();
+    }
+}
+
+// Função para salvar produto (novo ou editado)
+async function saveProduct() {
+    const productId = document.getElementById('product-id').value;
+    const name = document.getElementById('product-name-management').value.trim();
+    const price = parseFloat(document.getElementById('product-price-management').value);
+    const category = document.getElementById('product-category').value.trim();
+    
+    if (!name || isNaN(price) || price <= 0) {
+        alert('Por favor, preencha todos os campos corretamente.');
+        return;
+    }
+    
+    const productData = {
+        name,
+        price,
+        category: category || null,
+        updated_at: new Date().toISOString()
+    };
+    
+    try {
+        if (productId) {
+            // Editar produto existente
+            const { error } = await supabase
+                .from('products')
+                .update(productData)
+                .eq('id', productId);
+            
+            if (error) throw error;
+        } else {
+            // Adicionar novo produto
+            productData.created_at = new Date().toISOString();
+            const { error } = await supabase
+                .from('products')
+                .insert([productData]);
+            
+            if (error) throw error;
+        }
+        
+        // Recarregar a lista de produtos
+        await loadProducts();
+        closeModal('product-management-modal');
+        alert('Produto salvo com sucesso!');
+    } catch (error) {
+        console.error('Erro ao salvar produto:', error);
+        alert('Erro ao salvar produto. Tente novamente.');
+    }
+}
+
+// Adicione estas inicializações no final do seu arquivo JavaScript
+
+// No final da função initializeApp(), adicione:
+document.getElementById('add-new-product-btn').addEventListener('click', function() {
+    // Limpar o modal de gestão
+    document.getElementById('product-id').value = '';
+    document.getElementById('product-name-management').value = '';
+    document.getElementById('product-price-management').value = '';
+    document.getElementById('product-category').value = '';
+    
+    // Mostrar o modal de gestão
+    openModal('product-management-modal');
+});
+
+// Adicionar event listener para salvar produto
+document.getElementById('save-product-btn').addEventListener('click', saveProduct);
+
+// Carregar produtos quando o dashboard for mostrado
+// Modifique a função showDashboard():
+function showDashboard() {
+    document.getElementById('login-section').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    document.getElementById('main-nav').classList.remove('hidden');
+    
+    // Carregar produtos se for o merchant
+    if (appState.userType === 'merchant') {
+        loadProducts();
+    }
+}
 
 // Inicialização
 function initializeApp() {
